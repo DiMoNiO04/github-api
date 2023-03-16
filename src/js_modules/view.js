@@ -13,8 +13,13 @@ export class View {
 		//Create element SEARCH and adding elements to the DOM
 		this.searchLine = this.createElement('div', 'search-line')
 		this.searchInput = this.createElement('input', 'search-input')
+		this.searchInput.placeholder = 'Enter repository name...'
 		this.searchCounter = this.createElement('span', 'counter');
+		this.searchButton = this.createElement('button', 'button-search');
+		this.searchButton.textContent = 'Search';
+		this.searchButton.title = 'Search'
 		this.searchLine.append(this.searchInput);
+		this.searchLine.append(this.searchButton);
 		this.searchInput.append(this.searchCounter);
 
 		//Create repos wrapper
@@ -29,6 +34,7 @@ export class View {
 		//Create button load more
 		this.loadMore = this.createElement('button', 'button');
 		this.loadMore.textContent = 'More...';
+		this.loadMore.title = 'More'
 		this.loadMore.style.display = 'none';
 		this.reposWrapper.append(this.loadMore)
 
@@ -50,10 +56,9 @@ export class View {
 
 	//display of repositories
 	createRepo(repoData) {
-		const repoElement = this.createElement('li', 'repo-prev');
+		const repoElement = this.createElement('li', 'repo-item');
 		repoElement.innerHTML = `
-			<li class="repo-item">
-				<a href="${repoData.html_url}">${repoData.name}</a>
+				<a class="repo-link" href="${repoData.html_url}">${repoData.name}</a>
 				<div class="repo_content">
 					<h3 class="repo-subtitle">Author: </h3>
 					<p class="repo-author">${repoData.owner.login}</p>
@@ -70,7 +75,6 @@ export class View {
 					<h3 class="repo-subtitle">Created_repo: </h3>
 					<p class="repo-author">${repoData.created_at}</p>
 				</div>
-			</li>
 		`
 
 		this.reposList.append(repoElement);

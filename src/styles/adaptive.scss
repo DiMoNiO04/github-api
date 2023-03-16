@@ -1,0 +1,86 @@
+@media screen and (max-width: 640px) {	
+	.app{
+		margin: 70px 16px;
+		padding: 30px;
+	}
+	
+	.title{
+		font-size: 40px;
+	}
+	
+	.counter{
+		font-size: 24px;
+		margin: 30px 0 16px 0;
+	}
+	
+	.repo-link{
+		font-size: 30px;
+	}
+
+	.repos{
+		row-gap: 24px;
+	}
+	
+	.repos-wrapper{
+		row-gap: 30px;
+	}
+	
+	.repo-item{
+		padding: 16px;
+		row-gap: 10px;
+	}
+	
+	.repo-subtitle{
+		font-size: 20px;
+	}
+	
+	.repo-author{
+		font-size: 16px;
+	}
+
+	.button,
+	.button-search{
+		width: 40%;
+	}
+}
+
+@media screen and (max-width: 450px) {	
+	.app{
+		margin: 50px 16px;
+		padding: 20px;
+	}
+	
+	.title{
+		font-size: 32px;
+	}
+	
+	.counter{
+		font-size: 20px;
+		margin: 20px 0 12px 0;
+	}
+	
+	.repo-link{
+		font-size: 24px;
+	}
+
+	.repos{
+		row-gap: 20px;
+	}
+	
+	.repos-wrapper{
+		row-gap: 24px;
+	}
+	
+	.repo-subtitle{
+		font-size: 18px;
+	}
+	
+	.repo-author{
+		font-size: 14px;
+	}
+
+	.button,
+	.button-search{
+		width: 50%;
+	}
+}
