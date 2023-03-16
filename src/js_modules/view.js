@@ -35,6 +35,7 @@ export class View {
 		//Add elements to the DOM
 		this.app.append(this.title);
 		this.app.append(this.searchLine);
+		this.app.append(this.searchCounter)
 		this.app.append(this.main);
 	}
 
@@ -77,5 +78,9 @@ export class View {
 
 	toggleLoadMoreButton(show) {
 		this.loadMore.style.display = show ? 'block' : 'none';
+	}
+
+	setCounterMessage(message) {
+		this.searchCounter.textContent = message;
 	}
 }
