@@ -17,7 +17,11 @@ export class Search {
 		this.api = api;
 		this.log = log;
 
-		this.view.searchInput.addEventListener('keyup', this.debounce(this.loadRepos.bind(this), 500));
+		this.view.searchForm.addEventListener('submit', async(event) => {
+			event.preventDefault();
+			this.debounce(this.loadRepos(), 500);
+		})
+
 		this.view.loadMore.addEventListener('click', this.loadMoreRepos.bind(this));
 		this.currentPage = 1;
 		this.reposCount = 0;
