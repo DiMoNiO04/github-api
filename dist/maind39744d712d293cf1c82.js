@@ -75,9 +75,172 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _babel_polyfill__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_babel_polyfill__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _index_scss__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./index.scss */ "./src/index.scss");
 /* harmony import */ var _index_html__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./index.html */ "./src/index.html");
+/* harmony import */ var _js_modules_search_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./js_modules/search.js */ "./src/js_modules/search.js");
+/* harmony import */ var _js_modules_view_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./js_modules/view.js */ "./src/js_modules/view.js");
+/* harmony import */ var _js_modules_main_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./js_modules/main.js */ "./src/js_modules/main.js?6a28");
 
 
 
+
+
+
+
+/***/ }),
+
+/***/ "./src/js_modules/main.js?6a28":
+/*!********************************!*\
+  !*** ./src/js_modules/main.js ***!
+  \********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _search_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./search.js */ "./src/js_modules/search.js");
+/* harmony import */ var _view_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./view.js */ "./src/js_modules/view.js");
+
+
+new _search_js__WEBPACK_IMPORTED_MODULE_0__.Search(new _view_js__WEBPACK_IMPORTED_MODULE_1__.View());
+
+/***/ }),
+
+/***/ "./src/js_modules/search.js":
+/*!**********************************!*\
+  !*** ./src/js_modules/search.js ***!
+  \**********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Search": () => (/* binding */ Search)
+/* harmony export */ });
+
+
+//How many records to display per page
+const REPO_PER_PAGE = 10;
+
+//Search functional class
+class Search {
+  setCurrentPage(pageNumber) {
+    this.currentPage = pageNumber;
+  }
+  constructor(view) {
+    this.view = view;
+    this.view.searchInput.addEventListener('keyup', this.loadRepos.bind(this));
+    this.view.loadMore.addEventListener('click', this.loadRepos.bind(this));
+    this.currentPage = 1;
+  }
+
+  //search for repositories on demand
+  async loadRepos() {
+    const searchValue = this.view.searchInput.value;
+    if (searchValue) {
+      return await fetch(`https://api.github.com/search/repositories?q=${searchValue}&per_page=${REPO_PER_PAGE}&page=${this.currentPage}`).then(res => {
+        this.setCurrentPage(this.currentPage + 1);
+        if (res.ok) {
+          res.json().then(res => {
+            res.items.forEach(repo => this.view.createRepo(repo));
+          });
+        } else {}
+      });
+    } else {
+      this.clearRepos();
+    }
+  }
+  clearRepos() {
+    this.view.reposList.innerHTML = '';
+  }
+}
+
+/***/ }),
+
+/***/ "./src/js_modules/view.js":
+/*!********************************!*\
+  !*** ./src/js_modules/view.js ***!
+  \********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "View": () => (/* binding */ View)
+/* harmony export */ });
+
+
+//Output functionality class and dom creation
+class View {
+  constructor() {
+    //Get APP id
+    this.app = document.getElementById('app');
+
+    //Create element H1 and adding elements to the DOM
+    this.title = this.createElement('h1', 'title');
+    this.title.textContent = 'Github Search Repo';
+
+    //Create element SEARCH and adding elements to the DOM
+    this.searchLine = this.createElement('div', 'search-line');
+    this.searchInput = this.createElement('input', 'search-input');
+    this.searchCounter = this.createElement('span', 'counter');
+    this.searchLine.append(this.searchInput);
+    this.searchInput.append(this.searchCounter);
+
+    //Create repos wrapper
+    this.reposWrapper = this.createElement('div', 'repos-wrapper');
+    this.reposList = this.createElement('ul', 'repos');
+    this.reposWrapper.append(this.reposList);
+
+    //Create main
+    this.main = this.createElement('div', 'main');
+    this.main.append(this.reposWrapper);
+
+    //Create button load more
+    this.loadMore = this.createElement('button', 'button');
+    this.loadMore.textContent = 'More...';
+    this.reposWrapper.append(this.loadMore);
+
+    //Add elements to the DOM
+    this.app.append(this.title);
+    this.app.append(this.searchLine);
+    this.app.append(this.main);
+  }
+
+  //Method for creating an element
+  createElement(elementTag, elementClass) {
+    const element = document.createElement(elementTag);
+    if (elementClass) {
+      //If the class was passed to the method
+      element.classList.add(elementClass);
+    }
+    return element;
+  }
+
+  //display of repositories
+  createRepo(repoData) {
+    const repoElement = this.createElement('li', 'repo-prev');
+    repoElement.innerHTML = `
+			<li class="repo-item">
+				<a href="${repoData.html_url}">${repoData.name}</a>
+				<div class="repo_content">
+					<h3 class="repo-subtitle">Author: </h3>
+					<p class="repo-author">${repoData.login}</p>
+				</div>
+				<div class="repo_content">
+					<h3 class="repo-subtitle">Language: </h3>
+					<p class="repo-author">${repoData.language}</p>
+				</div>
+				<div class="repo_content">
+					<h3 class="repo-subtitle">Public or private: </h3>
+					<p class="repo-author">${repoData.visibility}</p>
+				</div>
+				<div class="repo_content">
+					<h3 class="repo-subtitle">Created_repo: </h3>
+					<p class="repo-author">${repoData.created_at}</p>
+				</div>
+			</li>
+		`;
+    this.reposList.append(repoElement);
+  }
+}
 
 /***/ }),
 
@@ -9180,14 +9343,61 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../node_modules/css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
 /* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var _node_modules_css_loader_dist_cjs_js_node_modules_normalize_css_normalize_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! -!../node_modules/css-loader/dist/cjs.js!../node_modules/normalize.css/normalize.css */ "./node_modules/css-loader/dist/cjs.js!./node_modules/normalize.css/normalize.css");
+/* harmony import */ var _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../node_modules/css-loader/dist/runtime/getUrl.js */ "./node_modules/css-loader/dist/runtime/getUrl.js");
+/* harmony import */ var _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(_node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3__);
 // Imports
 
 
 
+
+var ___CSS_LOADER_URL_IMPORT_0___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-regular.eot */ "./src/assets/fonts/lato-v23-latin-regular.eot"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_1___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-regular.woff2 */ "./src/assets/fonts/lato-v23-latin-regular.woff2"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_2___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-regular.woff */ "./src/assets/fonts/lato-v23-latin-regular.woff"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_3___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-regular.ttf */ "./src/assets/fonts/lato-v23-latin-regular.ttf"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_4___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-regular.svg */ "./src/assets/fonts/lato-v23-latin-regular.svg"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_5___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-italic.eot */ "./src/assets/fonts/lato-v23-latin-italic.eot"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_6___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-italic.woff2 */ "./src/assets/fonts/lato-v23-latin-italic.woff2"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_7___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-italic.woff */ "./src/assets/fonts/lato-v23-latin-italic.woff"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_8___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-italic.ttf */ "./src/assets/fonts/lato-v23-latin-italic.ttf"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_9___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-italic.svg */ "./src/assets/fonts/lato-v23-latin-italic.svg"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_10___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-700.eot */ "./src/assets/fonts/lato-v23-latin-700.eot"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_11___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-700.woff2 */ "./src/assets/fonts/lato-v23-latin-700.woff2"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_12___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-700.woff */ "./src/assets/fonts/lato-v23-latin-700.woff"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_13___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-700.ttf */ "./src/assets/fonts/lato-v23-latin-700.ttf"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_14___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-700.svg */ "./src/assets/fonts/lato-v23-latin-700.svg"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_15___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-700italic.eot */ "./src/assets/fonts/lato-v23-latin-700italic.eot"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_16___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-700italic.woff2 */ "./src/assets/fonts/lato-v23-latin-700italic.woff2"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_17___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-700italic.woff */ "./src/assets/fonts/lato-v23-latin-700italic.woff"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_18___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-700italic.ttf */ "./src/assets/fonts/lato-v23-latin-700italic.ttf"), __webpack_require__.b);
+var ___CSS_LOADER_URL_IMPORT_19___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/fonts/lato-v23-latin-700italic.svg */ "./src/assets/fonts/lato-v23-latin-700italic.svg"), __webpack_require__.b);
 var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 ___CSS_LOADER_EXPORT___.i(_node_modules_css_loader_dist_cjs_js_node_modules_normalize_css_normalize_css__WEBPACK_IMPORTED_MODULE_2__["default"]);
+var ___CSS_LOADER_URL_REPLACEMENT_0___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_0___);
+var ___CSS_LOADER_URL_REPLACEMENT_1___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_0___, { hash: "?#iefix" });
+var ___CSS_LOADER_URL_REPLACEMENT_2___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_1___);
+var ___CSS_LOADER_URL_REPLACEMENT_3___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_2___);
+var ___CSS_LOADER_URL_REPLACEMENT_4___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_3___);
+var ___CSS_LOADER_URL_REPLACEMENT_5___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_4___, { hash: "#Lato" });
+var ___CSS_LOADER_URL_REPLACEMENT_6___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_5___);
+var ___CSS_LOADER_URL_REPLACEMENT_7___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_5___, { hash: "?#iefix" });
+var ___CSS_LOADER_URL_REPLACEMENT_8___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_6___);
+var ___CSS_LOADER_URL_REPLACEMENT_9___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_7___);
+var ___CSS_LOADER_URL_REPLACEMENT_10___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_8___);
+var ___CSS_LOADER_URL_REPLACEMENT_11___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_9___, { hash: "#Lato" });
+var ___CSS_LOADER_URL_REPLACEMENT_12___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_10___);
+var ___CSS_LOADER_URL_REPLACEMENT_13___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_10___, { hash: "?#iefix" });
+var ___CSS_LOADER_URL_REPLACEMENT_14___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_11___);
+var ___CSS_LOADER_URL_REPLACEMENT_15___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_12___);
+var ___CSS_LOADER_URL_REPLACEMENT_16___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_13___);
+var ___CSS_LOADER_URL_REPLACEMENT_17___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_14___, { hash: "#Lato" });
+var ___CSS_LOADER_URL_REPLACEMENT_18___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_15___);
+var ___CSS_LOADER_URL_REPLACEMENT_19___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_15___, { hash: "?#iefix" });
+var ___CSS_LOADER_URL_REPLACEMENT_20___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_16___);
+var ___CSS_LOADER_URL_REPLACEMENT_21___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_17___);
+var ___CSS_LOADER_URL_REPLACEMENT_22___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_18___);
+var ___CSS_LOADER_URL_REPLACEMENT_23___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_19___, { hash: "#Lato" });
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, "", "",{"version":3,"sources":[],"names":[],"mappings":"","sourceRoot":""}]);
+___CSS_LOADER_EXPORT___.push([module.id, "/* lato-regular - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: normal;\n  font-weight: 400;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_0___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_1___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_2___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_3___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_4___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_5___ + ") format(\"svg\"); /* Legacy iOS */\n}\n/* lato-italic - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: italic;\n  font-weight: 400;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_6___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_7___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_8___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_9___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_10___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_11___ + ") format(\"svg\"); /* Legacy iOS */\n}\n/* lato-700 - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: normal;\n  font-weight: 700;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_12___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_13___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_14___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_15___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_16___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_17___ + ") format(\"svg\"); /* Legacy iOS */\n}\n/* lato-700italic - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: italic;\n  font-weight: 700;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_18___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_19___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_20___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_21___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_22___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_23___ + ") format(\"svg\"); /* Legacy iOS */\n}\nbody {\n  font-family: \"Lato\", sans-serif;\n}", "",{"version":3,"sources":["webpack://./src/index.scss","webpack://./src/styles/fonts.scss","webpack://./src/styles/main.scss"],"names":[],"mappings":"AAAQ,yBAAA;ACCR;EACC,kBAAA,EAAA,sGAAA;EACA,mBAAA;EACA,kBAAA;EACA,gBAAA;EACA,4CAAA,EAAA,qBAAA;EACA,4SAAA,EAIwE,eAAA;ADHzE;ACKC,wBAAA;AACA;EACA,kBAAA,EAAA,sGAAA;EACA,mBAAA;EACA,kBAAA;EACA,gBAAA;EACA,4CAAA,EAAA,qBAAA;EACA,8SAAA,EAIuE,eAAA;ADPxE;ACSC,qBAAA;AACA;EACA,kBAAA,EAAA,sGAAA;EACA,mBAAA;EACA,kBAAA;EACA,gBAAA;EACA,6CAAA,EAAA,qBAAA;EACA,iTAAA,EAIoE,eAAA;ADXrE;ACaC,2BAAA;AACA;EACA,kBAAA,EAAA,sGAAA;EACA,mBAAA;EACA,kBAAA;EACA,gBAAA;EACA,6CAAA,EAAA,qBAAA;EACA,iTAAA,EAI0E,eAAA;ADf3E;AEnCA;EACC,+BAAA;AFqCD","sourcesContent":["@import '~normalize.css';\r\n@import \"./styles/fonts.scss\";\r\n@import \"./styles/main.scss\";\r\n@import \"./styles/adaptive.scss\";","/* lato-regular - latin */\r\n@font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: normal;\r\n\tfont-weight: 400;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-regular.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-regular.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.svg#Lato') format('svg'); /* Legacy iOS */\r\n }\r\n /* lato-italic - latin */\r\n @font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: italic;\r\n\tfont-weight: 400;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-italic.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-italic.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.svg#Lato') format('svg'); /* Legacy iOS */\r\n }\r\n /* lato-700 - latin */\r\n @font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: normal;\r\n\tfont-weight: 700;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.svg#Lato') format('svg'); /* Legacy iOS */\r\n }\r\n /* lato-700italic - latin */\r\n @font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: italic;\r\n\tfont-weight: 700;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700italic.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700italic.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.svg#Lato') format('svg'); /* Legacy iOS */\r\n }","body{\r\n\tfont-family: 'Lato', sans-serif;\r\n}"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -9289,6 +9499,42 @@ module.exports = function (cssWithMappingToString) {
 
 /***/ }),
 
+/***/ "./node_modules/css-loader/dist/runtime/getUrl.js":
+/*!********************************************************!*\
+  !*** ./node_modules/css-loader/dist/runtime/getUrl.js ***!
+  \********************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+module.exports = function (url, options) {
+  if (!options) {
+    options = {};
+  }
+  if (!url) {
+    return url;
+  }
+  url = String(url.__esModule ? url.default : url);
+
+  // If url is already wrapped in quotes, remove them
+  if (/^['"].*['"]$/.test(url)) {
+    url = url.slice(1, -1);
+  }
+  if (options.hash) {
+    url += options.hash;
+  }
+
+  // Should url be wrapped?
+  // See https://drafts.csswg.org/css-values-3/#urls
+  if (/["'() \t\n]|(%20)/.test(url) || options.needQuotes) {
+    return "\"".concat(url.replace(/"/g, '\\"').replace(/\n/g, "\\n"), "\"");
+  }
+  return url;
+};
+
+/***/ }),
+
 /***/ "./node_modules/css-loader/dist/runtime/sourceMaps.js":
 /*!************************************************************!*\
   !*** ./node_modules/css-loader/dist/runtime/sourceMaps.js ***!
@@ -9326,10 +9572,66 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
+/* harmony import */ var _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../node_modules/html-loader/dist/runtime/getUrl.js */ "./node_modules/html-loader/dist/runtime/getUrl.js");
+/* harmony import */ var _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0__);
+// Imports
+
+var ___HTML_LOADER_IMPORT_0___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/favicons/apple-touch-icon.png */ "./src/assets/favicons/apple-touch-icon.png"), __webpack_require__.b);
+var ___HTML_LOADER_IMPORT_1___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/favicons/favicon-32x32.png */ "./src/assets/favicons/favicon-32x32.png"), __webpack_require__.b);
+var ___HTML_LOADER_IMPORT_2___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/favicons/favicon-16x16.png */ "./src/assets/favicons/favicon-16x16.png"), __webpack_require__.b);
+var ___HTML_LOADER_IMPORT_3___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/favicons/site.webmanifest */ "./src/assets/favicons/site.webmanifest"), __webpack_require__.b);
+var ___HTML_LOADER_IMPORT_4___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/favicons/safari-pinned-tab.svg */ "./src/assets/favicons/safari-pinned-tab.svg"), __webpack_require__.b);
+var ___HTML_LOADER_IMPORT_5___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/favicons/favicon.ico */ "./src/assets/favicons/favicon.ico"), __webpack_require__.b);
+var ___HTML_LOADER_IMPORT_6___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/favicons/browserconfig.xml */ "./src/assets/favicons/browserconfig.xml"), __webpack_require__.b);
+var ___HTML_LOADER_IMPORT_7___ = new URL(/* asset import */ __webpack_require__(/*! ./js_modules/main.js */ "./src/js_modules/main.js?e150"), __webpack_require__.b);
 // Module
-var code = "<!DOCTYPE html>\r\n<html lang=\"en\">\r\n<head>\r\n\t<meta charset=\"UTF-8\">\r\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\r\n\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n\t<title>Document</title>\r\n</head>\r\n<body>\r\n\t\r\n</body>\r\n</html>";
+var ___HTML_LOADER_REPLACEMENT_0___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_0___);
+var ___HTML_LOADER_REPLACEMENT_1___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_1___);
+var ___HTML_LOADER_REPLACEMENT_2___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_2___);
+var ___HTML_LOADER_REPLACEMENT_3___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_3___);
+var ___HTML_LOADER_REPLACEMENT_4___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_4___);
+var ___HTML_LOADER_REPLACEMENT_5___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_5___);
+var ___HTML_LOADER_REPLACEMENT_6___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_6___);
+var ___HTML_LOADER_REPLACEMENT_7___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_7___);
+var code = "<!DOCTYPE html>\r\n<html lang=\"en\">\r\n\r\n<head>\r\n\t<meta charset=\"UTF-8\">\r\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\r\n\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n\t<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"" + ___HTML_LOADER_REPLACEMENT_0___ + "\">\r\n\t<link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"" + ___HTML_LOADER_REPLACEMENT_1___ + "\">\r\n\t<link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"" + ___HTML_LOADER_REPLACEMENT_2___ + "\">\r\n\t<link rel=\"manifest\" href=\"" + ___HTML_LOADER_REPLACEMENT_3___ + "\">\r\n\t<link rel=\"mask-icon\" href=\"" + ___HTML_LOADER_REPLACEMENT_4___ + "\" color=\"#5bbad5\">\r\n\t<link rel=\"shortcut icon\" href=\"" + ___HTML_LOADER_REPLACEMENT_5___ + "\">\r\n\t<meta name=\"msapplication-TileColor\" content=\"#da532c\">\r\n\t<meta name=\"msapplication-config\" content=\"" + ___HTML_LOADER_REPLACEMENT_6___ + "\">\r\n\t<meta name=\"theme-color\" content=\"#ffffff\">\r\n\t<title>GitHub API Repo</title>\r\n</head>\r\n\r\n<body>\r\n\r\n\t<div id=\"app\" class=\"app\"></div>\r\n\r\n\t<" + "script src=\"" + ___HTML_LOADER_REPLACEMENT_7___ + "\" type=\"module\"><" + "/script>\r\n</body>\r\n\r\n</html>";
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (code);
+
+/***/ }),
+
+/***/ "./node_modules/html-loader/dist/runtime/getUrl.js":
+/*!*********************************************************!*\
+  !*** ./node_modules/html-loader/dist/runtime/getUrl.js ***!
+  \*********************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+module.exports = function (url, options) {
+  if (!options) {
+    // eslint-disable-next-line no-param-reassign
+    options = {};
+  }
+
+  if (!url) {
+    return url;
+  } // eslint-disable-next-line no-underscore-dangle, no-param-reassign
+
+
+  url = String(url.__esModule ? url.default : url);
+
+  if (options.hash) {
+    // eslint-disable-next-line no-param-reassign
+    url += options.hash;
+  }
+
+  if (options.maybeNeedQuotes && /[\t\n\f\r "'=<>`]/.test(url)) {
+    return "\"".concat(url, "\"");
+  }
+
+  return url;
+};
 
 /***/ }),
 
@@ -10469,6 +10771,314 @@ function styleTagTransform(css, styleElement) {
 
 module.exports = styleTagTransform;
 
+/***/ }),
+
+/***/ "./src/js_modules/main.js?e150":
+/*!********************************!*\
+  !*** ./src/js_modules/main.js ***!
+  \********************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/main.js";
+
+/***/ }),
+
+/***/ "./src/assets/favicons/apple-touch-icon.png":
+/*!**************************************************!*\
+  !*** ./src/assets/favicons/apple-touch-icon.png ***!
+  \**************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "image/apple-touch-icon.png";
+
+/***/ }),
+
+/***/ "./src/assets/favicons/favicon-16x16.png":
+/*!***********************************************!*\
+  !*** ./src/assets/favicons/favicon-16x16.png ***!
+  \***********************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "image/favicon-16x16.png";
+
+/***/ }),
+
+/***/ "./src/assets/favicons/favicon-32x32.png":
+/*!***********************************************!*\
+  !*** ./src/assets/favicons/favicon-32x32.png ***!
+  \***********************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "image/favicon-32x32.png";
+
+/***/ }),
+
+/***/ "./src/assets/favicons/safari-pinned-tab.svg":
+/*!***************************************************!*\
+  !*** ./src/assets/favicons/safari-pinned-tab.svg ***!
+  \***************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "image/safari-pinned-tab.svg";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-700.svg":
+/*!*************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-700.svg ***!
+  \*************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "image/lato-v23-latin-700.svg";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-700italic.svg":
+/*!*******************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-700italic.svg ***!
+  \*******************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "image/lato-v23-latin-700italic.svg";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-italic.svg":
+/*!****************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-italic.svg ***!
+  \****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "image/lato-v23-latin-italic.svg";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-regular.svg":
+/*!*****************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-regular.svg ***!
+  \*****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "image/lato-v23-latin-regular.svg";
+
+/***/ }),
+
+/***/ "./src/assets/favicons/browserconfig.xml":
+/*!***********************************************!*\
+  !*** ./src/assets/favicons/browserconfig.xml ***!
+  \***********************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/browserconfig.xml";
+
+/***/ }),
+
+/***/ "./src/assets/favicons/favicon.ico":
+/*!*****************************************!*\
+  !*** ./src/assets/favicons/favicon.ico ***!
+  \*****************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/favicon.ico";
+
+/***/ }),
+
+/***/ "./src/assets/favicons/site.webmanifest":
+/*!**********************************************!*\
+  !*** ./src/assets/favicons/site.webmanifest ***!
+  \**********************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/site.webmanifest";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-700.eot":
+/*!*************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-700.eot ***!
+  \*************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-700.eot";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-700.ttf":
+/*!*************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-700.ttf ***!
+  \*************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-700.ttf";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-700.woff":
+/*!**************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-700.woff ***!
+  \**************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-700.woff";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-700.woff2":
+/*!***************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-700.woff2 ***!
+  \***************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-700.woff2";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-700italic.eot":
+/*!*******************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-700italic.eot ***!
+  \*******************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-700italic.eot";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-700italic.ttf":
+/*!*******************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-700italic.ttf ***!
+  \*******************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-700italic.ttf";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-700italic.woff":
+/*!********************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-700italic.woff ***!
+  \********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-700italic.woff";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-700italic.woff2":
+/*!*********************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-700italic.woff2 ***!
+  \*********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-700italic.woff2";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-italic.eot":
+/*!****************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-italic.eot ***!
+  \****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-italic.eot";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-italic.ttf":
+/*!****************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-italic.ttf ***!
+  \****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-italic.ttf";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-italic.woff":
+/*!*****************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-italic.woff ***!
+  \*****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-italic.woff";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-italic.woff2":
+/*!******************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-italic.woff2 ***!
+  \******************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-italic.woff2";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-regular.eot":
+/*!*****************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-regular.eot ***!
+  \*****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-regular.eot";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-regular.ttf":
+/*!*****************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-regular.ttf ***!
+  \*****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-regular.ttf";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-regular.woff":
+/*!******************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-regular.woff ***!
+  \******************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-regular.woff";
+
+/***/ }),
+
+/***/ "./src/assets/fonts/lato-v23-latin-regular.woff2":
+/*!*******************************************************!*\
+  !*** ./src/assets/fonts/lato-v23-latin-regular.woff2 ***!
+  \*******************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-regular.woff2";
+
 /***/ })
 
 /******/ 	});
@@ -10497,6 +11107,9 @@ module.exports = styleTagTransform;
 /******/ 		return module.exports;
 /******/ 	}
 /******/ 	
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = __webpack_modules__;
+/******/ 	
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat get default export */
 /******/ 	(() => {
@@ -10522,6 +11135,18 @@ module.exports = styleTagTransform;
 /******/ 		};
 /******/ 	})();
 /******/ 	
+/******/ 	/* webpack/runtime/global */
+/******/ 	(() => {
+/******/ 		__webpack_require__.g = (function() {
+/******/ 			if (typeof globalThis === 'object') return globalThis;
+/******/ 			try {
+/******/ 				return this || new Function('return this')();
+/******/ 			} catch (e) {
+/******/ 				if (typeof window === 'object') return window;
+/******/ 			}
+/******/ 		})();
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
 /******/ 	(() => {
 /******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
@@ -10536,6 +11161,52 @@ module.exports = styleTagTransform;
 /******/ 			}
 /******/ 			Object.defineProperty(exports, '__esModule', { value: true });
 /******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/publicPath */
+/******/ 	(() => {
+/******/ 		var scriptUrl;
+/******/ 		if (__webpack_require__.g.importScripts) scriptUrl = __webpack_require__.g.location + "";
+/******/ 		var document = __webpack_require__.g.document;
+/******/ 		if (!scriptUrl && document) {
+/******/ 			if (document.currentScript)
+/******/ 				scriptUrl = document.currentScript.src
+/******/ 			if (!scriptUrl) {
+/******/ 				var scripts = document.getElementsByTagName("script");
+/******/ 				if(scripts.length) scriptUrl = scripts[scripts.length - 1].src
+/******/ 			}
+/******/ 		}
+/******/ 		// When supporting browsers where an automatic publicPath is not supported you must specify an output.publicPath manually via configuration
+/******/ 		// or pass an empty string ("") and set the __webpack_public_path__ variable from your code to use your own logic.
+/******/ 		if (!scriptUrl) throw new Error("Automatic publicPath is not supported in this browser");
+/******/ 		scriptUrl = scriptUrl.replace(/#.*$/, "").replace(/\?.*$/, "").replace(/\/[^\/]+$/, "/");
+/******/ 		__webpack_require__.p = scriptUrl;
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/jsonp chunk loading */
+/******/ 	(() => {
+/******/ 		__webpack_require__.b = document.baseURI || self.location.href;
+/******/ 		
+/******/ 		// object to store loaded and loading chunks
+/******/ 		// undefined = chunk not loaded, null = chunk preloaded/prefetched
+/******/ 		// [resolve, reject, Promise] = chunk loading, 0 = chunk loaded
+/******/ 		var installedChunks = {
+/******/ 			"main": 0
+/******/ 		};
+/******/ 		
+/******/ 		// no chunk on demand loading
+/******/ 		
+/******/ 		// no prefetching
+/******/ 		
+/******/ 		// no preloaded
+/******/ 		
+/******/ 		// no HMR
+/******/ 		
+/******/ 		// no HMR manifest
+/******/ 		
+/******/ 		// no on chunks loaded
+/******/ 		
+/******/ 		// no jsonp function
 /******/ 	})();
 /******/ 	
 /******/ 	/* webpack/runtime/nonce */
@@ -10553,4 +11224,4 @@ module.exports = styleTagTransform;
 /******/ 	
 /******/ })()
 ;
-//# sourceMappingURL=main7697e054d228611984de.js.map
+//# sourceMappingURL=maind39744d712d293cf1c82.js.map
