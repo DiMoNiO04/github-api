@@ -32,12 +32,21 @@ export class Search {
 
 		this.setCurrentPage(1);
 		this.view.setCounterMessage('');
-		if(this.view.searchInput.value) {
-			this.clearRepos()
-			this.reposRequest(this.view.searchInput.value)
-		}else{
+
+		if(this.view.searchInput.value.length < 4 && this.view.searchInput.value !== '') {
+			this.clearRepos();
+			this.view.toggleLoadMoreButton(false);
+			this.view.searchError.textContent = 'Введите больше 3 символов!';
+			return
+		}else if(this.view.searchInput.value === '') {
 			this.clearRepos();
 			this.view.toggleLoadMoreButton(false)
+			this.view.searchError.textContent = 'Заполните форму для поиска!';
+			return
+		}else {
+			this.clearRepos()
+			this.reposRequest(this.view.searchInput.value);
+			this.view.searchError.textContent = '';
 		}
 	}
 

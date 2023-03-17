@@ -1,3 +1,5 @@
+'use strict';
+
 import { Search } from "./search.js";
 import { View } from "./view.js";
 import { Api } from "./api.js";

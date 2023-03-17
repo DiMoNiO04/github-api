@@ -77,7 +77,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _index_html__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./index.html */ "./src/index.html");
 /* harmony import */ var _js_modules_search_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./js_modules/search.js */ "./src/js_modules/search.js");
 /* harmony import */ var _js_modules_view_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./js_modules/view.js */ "./src/js_modules/view.js");
-/* harmony import */ var _js_modules_main_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./js_modules/main.js */ "./src/js_modules/main.js?6a28");
+/* harmony import */ var _js_modules_main_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./js_modules/main.js */ "./src/js_modules/main.js");
 
 
 
@@ -87,7 +87,52 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
-/***/ "./src/js_modules/main.js?6a28":
+/***/ "./src/js_modules/api.js":
+/*!*******************************!*\
+  !*** ./src/js_modules/api.js ***!
+  \*******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Api": () => (/* binding */ Api)
+/* harmony export */ });
+
+
+//How many records to display per page
+const REPO_PER_PAGE = 10;
+const URL = 'https://api.github.com/';
+class Api {
+  async loadRepos(value, page) {
+    return await fetch(`${URL}search/repositories?q=${value}&per_page=${REPO_PER_PAGE}&page=${page}`);
+  }
+}
+
+/***/ }),
+
+/***/ "./src/js_modules/log.js":
+/*!*******************************!*\
+  !*** ./src/js_modules/log.js ***!
+  \*******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Log": () => (/* binding */ Log)
+/* harmony export */ });
+
+
+class Log {
+  counterMessage(counter) {
+    return counter ? `Найдено ${counter} репозиториев` : 'Ничего не найдено';
+  }
+}
+
+/***/ }),
+
+/***/ "./src/js_modules/main.js":
 /*!********************************!*\
   !*** ./src/js_modules/main.js ***!
   \********************************/
@@ -97,9 +142,16 @@ __webpack_require__.r(__webpack_exports__);
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _search_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./search.js */ "./src/js_modules/search.js");
 /* harmony import */ var _view_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./view.js */ "./src/js_modules/view.js");
+/* harmony import */ var _api_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./api.js */ "./src/js_modules/api.js");
+/* harmony import */ var _log_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./log.js */ "./src/js_modules/log.js");
 
 
-new _search_js__WEBPACK_IMPORTED_MODULE_0__.Search(new _view_js__WEBPACK_IMPORTED_MODULE_1__.View());
+
+
+
+
+const api = new _api_js__WEBPACK_IMPORTED_MODULE_2__.Api();
+const app = new _search_js__WEBPACK_IMPORTED_MODULE_0__.Search(new _view_js__WEBPACK_IMPORTED_MODULE_1__.View(), api, new _log_js__WEBPACK_IMPORTED_MODULE_3__.Log());
 
 /***/ }),
 
@@ -116,39 +168,92 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 
 
-//How many records to display per page
-const REPO_PER_PAGE = 10;
-
 //Search functional class
 class Search {
   setCurrentPage(pageNumber) {
     this.currentPage = pageNumber;
   }
-  constructor(view) {
+  setReposCount(count) {
+    this.reposCount = count;
+  }
+  constructor(view, api, log) {
     this.view = view;
-    this.view.searchInput.addEventListener('keyup', this.loadRepos.bind(this));
-    this.view.loadMore.addEventListener('click', this.loadRepos.bind(this));
+    this.api = api;
+    this.log = log;
+    this.view.searchForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      this.debounce(this.loadRepos(), 500);
+    });
+    this.view.loadMore.addEventListener('click', this.loadMoreRepos.bind(this));
     this.currentPage = 1;
+    this.reposCount = 0;
   }
 
   //search for repositories on demand
-  async loadRepos() {
-    const searchValue = this.view.searchInput.value;
-    if (searchValue) {
-      return await fetch(`https://api.github.com/search/repositories?q=${searchValue}&per_page=${REPO_PER_PAGE}&page=${this.currentPage}`).then(res => {
-        this.setCurrentPage(this.currentPage + 1);
-        if (res.ok) {
-          res.json().then(res => {
-            res.items.forEach(repo => this.view.createRepo(repo));
-          });
-        } else {}
-      });
+  loadRepos() {
+    this.setCurrentPage(1);
+    this.view.setCounterMessage('');
+    if (this.view.searchInput.value.length < 4 && this.view.searchInput.value !== '') {
+      this.clearRepos();
+      this.view.toggleLoadMoreButton(false);
+      this.view.searchError.textContent = 'Введите больше 3 символов!';
+      return;
+    } else if (this.view.searchInput.value === '') {
+      this.clearRepos();
+      this.view.toggleLoadMoreButton(false);
+      this.view.searchError.textContent = 'Заполните форму для поиска!';
+      return;
     } else {
       this.clearRepos();
+      this.reposRequest(this.view.searchInput.value);
+      this.view.searchError.textContent = '';
+    }
+  }
+  loadMoreRepos() {
+    this.setCurrentPage(this.currentPage + 1);
+    this.reposRequest(this.view.searchInput.value);
+  }
+  async reposRequest(searchValue) {
+    let totalCount;
+    let repos;
+    let message;
+    try {
+      await this.api.loadRepos(searchValue, this.currentPage).then(res => {
+        res.json().then(res => {
+          repos = res.items;
+          totalCount = res.total_count;
+          message = this.log.counterMessage(totalCount);
+          this.setReposCount(this.reposCount + res.items.length);
+          this.view.setCounterMessage(message);
+          this.view.toggleLoadMoreButton(totalCount > 10 && this.reposCount !== totalCount);
+          repos.forEach(repo => this.view.createRepo(repo));
+        });
+      });
+    } catch (e) {
+      console.log('Error:' + e);
     }
   }
   clearRepos() {
     this.view.reposList.innerHTML = '';
+  }
+  debounce(func, wait, immediate) {
+    let timeout;
+    return function () {
+      const context = this,
+        args = arguments;
+      const later = function () {
+        timeout = null;
+        if (!immediate) {
+          func.apply(context, args);
+        }
+      };
+      const callNow = immediate && !timeout;
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+      if (callNow) {
+        func.apply(context, args);
+      }
+    };
   }
 }
 
@@ -178,10 +283,18 @@ class View {
     this.title.textContent = 'Github Search Repo';
 
     //Create element SEARCH and adding elements to the DOM
-    this.searchLine = this.createElement('div', 'search-line');
+    this.searchForm = this.createElement('form', 'search-form');
     this.searchInput = this.createElement('input', 'search-input');
+    this.searchInput.placeholder = 'Enter repository name...';
     this.searchCounter = this.createElement('span', 'counter');
-    this.searchLine.append(this.searchInput);
+    this.searchError = this.createElement('span', 'search-error');
+    this.searchButton = this.createElement('button', 'button-search');
+    this.searchButton.textContent = 'Search';
+    this.searchButton.title = 'Search';
+    this.searchButton.type = 'submit';
+    this.searchForm.append(this.searchInput);
+    this.searchForm.append(this.searchButton);
+    this.searchInput.append(this.searchError);
     this.searchInput.append(this.searchCounter);
 
     //Create repos wrapper
@@ -196,11 +309,15 @@ class View {
     //Create button load more
     this.loadMore = this.createElement('button', 'button');
     this.loadMore.textContent = 'More...';
+    this.loadMore.title = 'More';
+    this.loadMore.style.display = 'none';
     this.reposWrapper.append(this.loadMore);
 
     //Add elements to the DOM
     this.app.append(this.title);
-    this.app.append(this.searchLine);
+    this.app.append(this.searchForm);
+    this.app.append(this.searchError);
+    this.app.append(this.searchCounter);
     this.app.append(this.main);
   }
 
@@ -216,13 +333,12 @@ class View {
 
   //display of repositories
   createRepo(repoData) {
-    const repoElement = this.createElement('li', 'repo-prev');
+    const repoElement = this.createElement('li', 'repo-item');
     repoElement.innerHTML = `
-			<li class="repo-item">
-				<a href="${repoData.html_url}">${repoData.name}</a>
+				<a class="repo-link" href="${repoData.html_url}" target="_blank">${repoData.name}</a>
 				<div class="repo_content">
 					<h3 class="repo-subtitle">Author: </h3>
-					<p class="repo-author">${repoData.login}</p>
+					<p class="repo-author">${repoData.owner.login}</p>
 				</div>
 				<div class="repo_content">
 					<h3 class="repo-subtitle">Language: </h3>
@@ -236,9 +352,14 @@ class View {
 					<h3 class="repo-subtitle">Created_repo: </h3>
 					<p class="repo-author">${repoData.created_at}</p>
 				</div>
-			</li>
 		`;
     this.reposList.append(repoElement);
+  }
+  toggleLoadMoreButton(show) {
+    this.loadMore.style.display = show ? 'block' : 'none';
+  }
+  setCounterMessage(message) {
+    this.searchCounter.textContent = message;
   }
 }
 
@@ -9397,7 +9518,7 @@ var ___CSS_LOADER_URL_REPLACEMENT_21___ = _node_modules_css_loader_dist_runtime_
 var ___CSS_LOADER_URL_REPLACEMENT_22___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_18___);
 var ___CSS_LOADER_URL_REPLACEMENT_23___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_3___default()(___CSS_LOADER_URL_IMPORT_19___, { hash: "#Lato" });
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, "/* lato-regular - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: normal;\n  font-weight: 400;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_0___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_1___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_2___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_3___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_4___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_5___ + ") format(\"svg\"); /* Legacy iOS */\n}\n/* lato-italic - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: italic;\n  font-weight: 400;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_6___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_7___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_8___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_9___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_10___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_11___ + ") format(\"svg\"); /* Legacy iOS */\n}\n/* lato-700 - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: normal;\n  font-weight: 700;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_12___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_13___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_14___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_15___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_16___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_17___ + ") format(\"svg\"); /* Legacy iOS */\n}\n/* lato-700italic - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: italic;\n  font-weight: 700;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_18___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_19___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_20___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_21___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_22___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_23___ + ") format(\"svg\"); /* Legacy iOS */\n}\nbody {\n  font-family: \"Lato\", sans-serif;\n}", "",{"version":3,"sources":["webpack://./src/index.scss","webpack://./src/styles/fonts.scss","webpack://./src/styles/main.scss"],"names":[],"mappings":"AAAQ,yBAAA;ACCR;EACC,kBAAA,EAAA,sGAAA;EACA,mBAAA;EACA,kBAAA;EACA,gBAAA;EACA,4CAAA,EAAA,qBAAA;EACA,4SAAA,EAIwE,eAAA;ADHzE;ACKC,wBAAA;AACA;EACA,kBAAA,EAAA,sGAAA;EACA,mBAAA;EACA,kBAAA;EACA,gBAAA;EACA,4CAAA,EAAA,qBAAA;EACA,8SAAA,EAIuE,eAAA;ADPxE;ACSC,qBAAA;AACA;EACA,kBAAA,EAAA,sGAAA;EACA,mBAAA;EACA,kBAAA;EACA,gBAAA;EACA,6CAAA,EAAA,qBAAA;EACA,iTAAA,EAIoE,eAAA;ADXrE;ACaC,2BAAA;AACA;EACA,kBAAA,EAAA,sGAAA;EACA,mBAAA;EACA,kBAAA;EACA,gBAAA;EACA,6CAAA,EAAA,qBAAA;EACA,iTAAA,EAI0E,eAAA;ADf3E;AEnCA;EACC,+BAAA;AFqCD","sourcesContent":["@import '~normalize.css';\r\n@import \"./styles/fonts.scss\";\r\n@import \"./styles/main.scss\";\r\n@import \"./styles/adaptive.scss\";","/* lato-regular - latin */\r\n@font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: normal;\r\n\tfont-weight: 400;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-regular.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-regular.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.svg#Lato') format('svg'); /* Legacy iOS */\r\n }\r\n /* lato-italic - latin */\r\n @font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: italic;\r\n\tfont-weight: 400;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-italic.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-italic.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.svg#Lato') format('svg'); /* Legacy iOS */\r\n }\r\n /* lato-700 - latin */\r\n @font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: normal;\r\n\tfont-weight: 700;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.svg#Lato') format('svg'); /* Legacy iOS */\r\n }\r\n /* lato-700italic - latin */\r\n @font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: italic;\r\n\tfont-weight: 700;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700italic.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700italic.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.svg#Lato') format('svg'); /* Legacy iOS */\r\n }","body{\r\n\tfont-family: 'Lato', sans-serif;\r\n}"],"sourceRoot":""}]);
+___CSS_LOADER_EXPORT___.push([module.id, "/* lato-regular - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: normal;\n  font-weight: 400;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_0___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_1___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_2___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_3___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_4___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_5___ + ") format(\"svg\"); /* Legacy iOS */\n}\n/* lato-italic - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: italic;\n  font-weight: 400;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_6___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_7___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_8___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_9___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_10___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_11___ + ") format(\"svg\"); /* Legacy iOS */\n}\n/* lato-700 - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: normal;\n  font-weight: 700;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_12___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_13___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_14___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_15___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_16___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_17___ + ") format(\"svg\"); /* Legacy iOS */\n}\n/* lato-700italic - latin */\n@font-face {\n  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\n  font-family: \"Lato\";\n  font-style: italic;\n  font-weight: 700;\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_18___ + "); /* IE9 Compat Modes */\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_19___ + ") format(\"embedded-opentype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_20___ + ") format(\"woff2\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_21___ + ") format(\"woff\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_22___ + ") format(\"truetype\"), url(" + ___CSS_LOADER_URL_REPLACEMENT_23___ + ") format(\"svg\"); /* Legacy iOS */\n}\nbody {\n  font-family: \"Lato\", sans-serif;\n  background-color: bisque;\n}\n\n.app {\n  max-width: 1100px;\n  margin: 100px auto;\n  box-sizing: border-box;\n  padding: 50px;\n  background-color: rgb(249, 236, 216);\n  border: 5px solid grey;\n  border-radius: 10px;\n}\n\n.title {\n  font-size: 50px;\n  text-align: center;\n  font-weight: 700;\n}\n\n.search-input {\n  width: 100%;\n  padding: 12px;\n  border-radius: 10px;\n  margin: 30px 0 16px 0;\n  font-size: 20px;\n  font-weight: bold;\n  color: black;\n  box-sizing: border-box;\n}\n\n.search-error {\n  color: red;\n  font-size: 18px;\n  font-weight: bold;\n  font-style: italic;\n  border-bottom: 1px solid red;\n}\n\n.counter {\n  font-size: 28px;\n  font-weight: bold;\n  border-bottom: 1px solid black;\n  font-style: italic;\n  display: inline-block;\n  margin: 40px 0 20px 0;\n}\n\n.repos, h3, p {\n  padding: 0;\n  margin: 0;\n}\n\n.repo-link {\n  -webkit-text-decoration: none;\n  text-decoration: none;\n  font-size: 40px;\n  font-style: italic;\n  font-weight: bold;\n  border-bottom: 1px solid black;\n  color: red;\n}\n\n.repo-link:hover {\n  color: rgb(88, 1, 1);\n  cursor: pointer;\n}\n\n.repos {\n  display: flex;\n  flex-direction: column;\n  row-gap: 30px;\n}\n\n.repos-wrapper {\n  display: flex;\n  flex-direction: column;\n  row-gap: 40px;\n}\n\n.repo-item {\n  list-style: none;\n  border: 3px solid black;\n  padding: 20px;\n  display: flex;\n  flex-direction: column;\n  row-gap: 12px;\n  border-radius: 10px;\n  background: beige;\n}\n\n.repo-subtitle {\n  padding-bottom: 3px;\n  font-size: 24px;\n}\n\n.repo-author {\n  font-size: 20px;\n  font-style: italic;\n}\n\n.button,\n.button-search {\n  display: block;\n  padding: 8px;\n  width: 25%;\n  border: 1px solid black;\n  border-radius: 10px;\n  font-size: 20px;\n  font-weight: bold;\n}\n\n.button:hover,\n.button-search:hover {\n  background: gray;\n  cursor: pointer;\n  transition: all 0.3s ease-in-out;\n}\n\n@media screen and (max-width: 600px) {\n  .app {\n    margin: 70px 16px;\n    box-sizing: border-box;\n    padding: 30px;\n  }\n  .title {\n    font-size: 40px;\n  }\n  .counter {\n    font-size: 24px;\n    margin: 30px 0 16px 0;\n  }\n  .repo-link {\n    font-size: 30px;\n  }\n  .repos {\n    row-gap: 24px;\n  }\n  .repos-wrapper {\n    row-gap: 30px;\n  }\n  .repo-item {\n    padding: 16px;\n    row-gap: 10px;\n  }\n  .repo-subtitle {\n    font-size: 20px;\n  }\n  .repo-author {\n    font-size: 16px;\n  }\n}\n@media screen and (max-width: 640px) {\n  .app {\n    margin: 70px 16px;\n    padding: 30px;\n  }\n  .title {\n    font-size: 40px;\n  }\n  .counter {\n    font-size: 24px;\n    margin: 30px 0 16px 0;\n  }\n  .repo-link {\n    font-size: 30px;\n  }\n  .repos {\n    row-gap: 24px;\n  }\n  .repos-wrapper {\n    row-gap: 30px;\n  }\n  .repo-item {\n    padding: 16px;\n    row-gap: 10px;\n  }\n  .repo-subtitle {\n    font-size: 20px;\n  }\n  .repo-author {\n    font-size: 16px;\n  }\n  .button,\n  .button-search {\n    width: 40%;\n  }\n}\n@media screen and (max-width: 450px) {\n  .app {\n    margin: 50px 16px;\n    padding: 20px;\n  }\n  .title {\n    font-size: 32px;\n  }\n  .counter {\n    font-size: 20px;\n    margin: 20px 0 12px 0;\n  }\n  .repo-link {\n    font-size: 24px;\n  }\n  .repos {\n    row-gap: 20px;\n  }\n  .repos-wrapper {\n    row-gap: 24px;\n  }\n  .repo-subtitle {\n    font-size: 18px;\n  }\n  .repo-author {\n    font-size: 14px;\n  }\n  .button,\n  .button-search {\n    width: 50%;\n  }\n}", "",{"version":3,"sources":["webpack://./src/index.scss","webpack://./src/styles/fonts.scss","webpack://./src/styles/main.scss","webpack://./src/styles/adaptive.scss"],"names":[],"mappings":"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","sourcesContent":["@import '~normalize.css';\r\n@import \"./styles/fonts.scss\";\r\n@import \"./styles/main.scss\";\r\n@import \"./styles/adaptive.scss\";","/* lato-regular - latin */\r\n@font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: normal;\r\n\tfont-weight: 400;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-regular.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-regular.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-regular.svg#Lato') format('svg'); /* Legacy iOS */\r\n }\r\n /* lato-italic - latin */\r\n @font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: italic;\r\n\tfont-weight: 400;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-italic.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-italic.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-italic.svg#Lato') format('svg'); /* Legacy iOS */\r\n }\r\n /* lato-700 - latin */\r\n @font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: normal;\r\n\tfont-weight: 700;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700.svg#Lato') format('svg'); /* Legacy iOS */\r\n }\r\n /* lato-700italic - latin */\r\n @font-face {\r\n\tfont-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */\r\n\tfont-family: 'Lato';\r\n\tfont-style: italic;\r\n\tfont-weight: 700;\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700italic.eot'); /* IE9 Compat Modes */\r\n\tsrc: url('./assets/fonts/lato-v23-latin-700italic.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.woff2') format('woff2'), /* Super Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.woff') format('woff'), /* Modern Browsers */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.ttf') format('truetype'), /* Safari, Android, iOS */\r\n\t\t  url('./assets/fonts/lato-v23-latin-700italic.svg#Lato') format('svg'); /* Legacy iOS */\r\n }","body{\r\n\tfont-family: 'Lato', sans-serif;\r\n\tbackground-color: bisque;\r\n}\r\n\r\n.app{\r\n\tmax-width: 1100px;\r\n\tmargin: 100px auto;\r\n\tbox-sizing: border-box;\r\n\tpadding: 50px;\r\n\tbackground-color: rgb(249, 236, 216);\r\n\tborder: 5px solid grey;\r\n\tborder-radius: 10px;\r\n}\r\n\r\n.title{\r\n\tfont-size: 50px;\r\n\ttext-align: center;\r\n\tfont-weight: 700;\r\n}\r\n\r\n.search-input{\r\n\twidth: 100%;\r\n\tpadding: 12px;\r\n\tborder-radius: 10px;\r\n\tmargin: 30px 0 16px 0;\r\n\tfont-size: 20px;\r\n\tfont-weight: bold;\r\n\tcolor: black;\r\n\tbox-sizing: border-box;\r\n}\r\n\r\n.search-error{\r\n\tcolor: red;\r\n\tfont-size: 18px;\r\n\tfont-weight: bold;\r\n\tfont-style: italic;\r\n\tborder-bottom: 1px solid red;\r\n}\r\n\r\n.counter{\r\n\tfont-size: 28px;\r\n\tfont-weight: bold;\r\n\tborder-bottom: 1px solid black;\r\n\tfont-style: italic;\r\n\tdisplay: inline-block;\r\n\tmargin: 40px 0 20px 0;\r\n}\r\n\r\n.repos, h3, p{\r\n\tpadding: 0;\r\n\tmargin: 0;\r\n}\r\n\r\n.repo-link{\r\n\ttext-decoration: none;\r\n\tfont-size: 40px;\r\n\tfont-style: italic;\r\n\tfont-weight: bold;\r\n\tborder-bottom: 1px solid black;\r\n\tcolor: red;\r\n}\r\n\r\n.repo-link:hover{\r\n\tcolor: rgb(88, 1, 1);\r\n\tcursor: pointer;\r\n}\r\n\r\n.repos{\r\n\tdisplay: flex;\r\n   flex-direction: column;\r\n   row-gap: 30px;\r\n}\r\n\r\n.repos-wrapper{\r\n\tdisplay: flex;\r\n\tflex-direction: column;\r\n\trow-gap: 40px;\r\n}\r\n\r\n.repo-item{\r\n\tlist-style: none;\r\n\tborder: 3px solid black;\r\n\tpadding: 20px;\r\n\tdisplay: flex;\r\n\tflex-direction: column;\r\n\trow-gap: 12px;\r\n\tborder-radius: 10px;\r\n\tbackground: beige;\r\n}\r\n\r\n.repo-subtitle{\r\n\tpadding-bottom: 3px;\r\n\tfont-size: 24px;\r\n}\r\n\r\n.repo-author{\r\n\tfont-size: 20px;\r\n\tfont-style: italic;\r\n}\r\n\r\n.button,\r\n.button-search{\r\n\tdisplay: block;\r\n\tpadding: 8px;\r\n\twidth: 25%;\r\n\tborder: 1px solid black;\r\n\tborder-radius: 10px;\r\n\tfont-size: 20px;\r\n\tfont-weight: bold;\r\n}\r\n\r\n.button:hover,\r\n.button-search:hover{\r\n\tbackground: gray;\r\n\tcursor: pointer;\r\n\ttransition: all 0.3s ease-in-out;\r\n}\r\n\r\n@media screen and (max-width: 600px) {\t\r\n\t.app{\r\n\t\tmargin: 70px 16px;\r\n\t\tbox-sizing: border-box;\r\n\t\tpadding: 30px;\r\n\t}\r\n\t\r\n\t.title{\r\n\t\tfont-size: 40px;\r\n\t}\r\n\t\r\n\t.counter{\r\n\t\tfont-size: 24px;\r\n\t\tmargin: 30px 0 16px 0;\r\n\t}\r\n\t\r\n\t.repo-link{\r\n\t\tfont-size: 30px;\r\n\t}\r\n\r\n\t.repos{\r\n\t\trow-gap: 24px;\r\n\t}\r\n\t\r\n\t.repos-wrapper{\r\n\t\trow-gap: 30px;\r\n\t}\r\n\t\r\n\t.repo-item{\r\n\t\tpadding: 16px;\r\n\t\trow-gap: 10px;\r\n\t}\r\n\t\r\n\t.repo-subtitle{\r\n\t\tfont-size: 20px;\r\n\t}\r\n\t\r\n\t.repo-author{\r\n\t\tfont-size: 16px;\r\n\t}\r\n}","@media screen and (max-width: 640px) {\t\r\n\t.app{\r\n\t\tmargin: 70px 16px;\r\n\t\tpadding: 30px;\r\n\t}\r\n\t\r\n\t.title{\r\n\t\tfont-size: 40px;\r\n\t}\r\n\t\r\n\t.counter{\r\n\t\tfont-size: 24px;\r\n\t\tmargin: 30px 0 16px 0;\r\n\t}\r\n\t\r\n\t.repo-link{\r\n\t\tfont-size: 30px;\r\n\t}\r\n\r\n\t.repos{\r\n\t\trow-gap: 24px;\r\n\t}\r\n\t\r\n\t.repos-wrapper{\r\n\t\trow-gap: 30px;\r\n\t}\r\n\t\r\n\t.repo-item{\r\n\t\tpadding: 16px;\r\n\t\trow-gap: 10px;\r\n\t}\r\n\t\r\n\t.repo-subtitle{\r\n\t\tfont-size: 20px;\r\n\t}\r\n\t\r\n\t.repo-author{\r\n\t\tfont-size: 16px;\r\n\t}\r\n\r\n\t.button,\r\n\t.button-search{\r\n\t\twidth: 40%;\r\n\t}\r\n}\r\n\r\n@media screen and (max-width: 450px) {\t\r\n\t.app{\r\n\t\tmargin: 50px 16px;\r\n\t\tpadding: 20px;\r\n\t}\r\n\t\r\n\t.title{\r\n\t\tfont-size: 32px;\r\n\t}\r\n\t\r\n\t.counter{\r\n\t\tfont-size: 20px;\r\n\t\tmargin: 20px 0 12px 0;\r\n\t}\r\n\t\r\n\t.repo-link{\r\n\t\tfont-size: 24px;\r\n\t}\r\n\r\n\t.repos{\r\n\t\trow-gap: 20px;\r\n\t}\r\n\t\r\n\t.repos-wrapper{\r\n\t\trow-gap: 24px;\r\n\t}\r\n\t\r\n\t.repo-subtitle{\r\n\t\tfont-size: 18px;\r\n\t}\r\n\t\r\n\t.repo-author{\r\n\t\tfont-size: 14px;\r\n\t}\r\n\r\n\t.button,\r\n\t.button-search{\r\n\t\twidth: 50%;\r\n\t}\r\n}"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -9583,7 +9704,6 @@ var ___HTML_LOADER_IMPORT_3___ = new URL(/* asset import */ __webpack_require__(
 var ___HTML_LOADER_IMPORT_4___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/favicons/safari-pinned-tab.svg */ "./src/assets/favicons/safari-pinned-tab.svg"), __webpack_require__.b);
 var ___HTML_LOADER_IMPORT_5___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/favicons/favicon.ico */ "./src/assets/favicons/favicon.ico"), __webpack_require__.b);
 var ___HTML_LOADER_IMPORT_6___ = new URL(/* asset import */ __webpack_require__(/*! ./assets/favicons/browserconfig.xml */ "./src/assets/favicons/browserconfig.xml"), __webpack_require__.b);
-var ___HTML_LOADER_IMPORT_7___ = new URL(/* asset import */ __webpack_require__(/*! ./js_modules/main.js */ "./src/js_modules/main.js?e150"), __webpack_require__.b);
 // Module
 var ___HTML_LOADER_REPLACEMENT_0___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_0___);
 var ___HTML_LOADER_REPLACEMENT_1___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_1___);
@@ -9592,8 +9712,7 @@ var ___HTML_LOADER_REPLACEMENT_3___ = _node_modules_html_loader_dist_runtime_get
 var ___HTML_LOADER_REPLACEMENT_4___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_4___);
 var ___HTML_LOADER_REPLACEMENT_5___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_5___);
 var ___HTML_LOADER_REPLACEMENT_6___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_6___);
-var ___HTML_LOADER_REPLACEMENT_7___ = _node_modules_html_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_0___default()(___HTML_LOADER_IMPORT_7___);
-var code = "<!DOCTYPE html>\r\n<html lang=\"en\">\r\n\r\n<head>\r\n\t<meta charset=\"UTF-8\">\r\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\r\n\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n\t<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"" + ___HTML_LOADER_REPLACEMENT_0___ + "\">\r\n\t<link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"" + ___HTML_LOADER_REPLACEMENT_1___ + "\">\r\n\t<link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"" + ___HTML_LOADER_REPLACEMENT_2___ + "\">\r\n\t<link rel=\"manifest\" href=\"" + ___HTML_LOADER_REPLACEMENT_3___ + "\">\r\n\t<link rel=\"mask-icon\" href=\"" + ___HTML_LOADER_REPLACEMENT_4___ + "\" color=\"#5bbad5\">\r\n\t<link rel=\"shortcut icon\" href=\"" + ___HTML_LOADER_REPLACEMENT_5___ + "\">\r\n\t<meta name=\"msapplication-TileColor\" content=\"#da532c\">\r\n\t<meta name=\"msapplication-config\" content=\"" + ___HTML_LOADER_REPLACEMENT_6___ + "\">\r\n\t<meta name=\"theme-color\" content=\"#ffffff\">\r\n\t<title>GitHub API Repo</title>\r\n</head>\r\n\r\n<body>\r\n\r\n\t<div id=\"app\" class=\"app\"></div>\r\n\r\n\t<" + "script src=\"" + ___HTML_LOADER_REPLACEMENT_7___ + "\" type=\"module\"><" + "/script>\r\n</body>\r\n\r\n</html>";
+var code = "<!DOCTYPE html>\r\n<html lang=\"en\">\r\n\r\n<head>\r\n\t<meta charset=\"UTF-8\">\r\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\r\n\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n\t<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"" + ___HTML_LOADER_REPLACEMENT_0___ + "\">\r\n\t<link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"" + ___HTML_LOADER_REPLACEMENT_1___ + "\">\r\n\t<link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"" + ___HTML_LOADER_REPLACEMENT_2___ + "\">\r\n\t<link rel=\"manifest\" href=\"" + ___HTML_LOADER_REPLACEMENT_3___ + "\">\r\n\t<link rel=\"mask-icon\" href=\"" + ___HTML_LOADER_REPLACEMENT_4___ + "\" color=\"#5bbad5\">\r\n\t<link rel=\"shortcut icon\" href=\"" + ___HTML_LOADER_REPLACEMENT_5___ + "\">\r\n\t<meta name=\"msapplication-TileColor\" content=\"#da532c\">\r\n\t<meta name=\"msapplication-config\" content=\"" + ___HTML_LOADER_REPLACEMENT_6___ + "\">\r\n\t<meta name=\"theme-color\" content=\"#ffffff\">\r\n\t<title>GitHub API Repo</title>\r\n</head>\r\n\r\n<body>\r\n\r\n\t<div id=\"app\" class=\"app\"></div>\r\n\r\n</body>\r\n\r\n</html>";
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (code);
 
@@ -10773,17 +10892,6 @@ module.exports = styleTagTransform;
 
 /***/ }),
 
-/***/ "./src/js_modules/main.js?e150":
-/*!********************************!*\
-  !*** ./src/js_modules/main.js ***!
-  \********************************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-"use strict";
-module.exports = __webpack_require__.p + "assets/main.js";
-
-/***/ }),
-
 /***/ "./src/assets/favicons/apple-touch-icon.png":
 /*!**************************************************!*\
   !*** ./src/assets/favicons/apple-touch-icon.png ***!
@@ -11224,4 +11332,4 @@ module.exports = __webpack_require__.p + "assets/fonts/lato-v23-latin-regular.wo
 /******/ 	
 /******/ })()
 ;
-//# sourceMappingURL=maind39744d712d293cf1c82.js.map
+//# sourceMappingURL=main77cfaee44361fb5889bf.js.map

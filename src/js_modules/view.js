@@ -15,12 +15,14 @@ export class View {
 		this.searchInput = this.createElement('input', 'search-input')
 		this.searchInput.placeholder = 'Enter repository name...'
 		this.searchCounter = this.createElement('span', 'counter');
+		this.searchError = this.createElement('span', 'search-error');
 		this.searchButton = this.createElement('button', 'button-search');
 		this.searchButton.textContent = 'Search';
 		this.searchButton.title = 'Search';
 		this.searchButton.type = 'submit';
 		this.searchForm.append(this.searchInput);
 		this.searchForm.append(this.searchButton);
+		this.searchInput.append(this.searchError);
 		this.searchInput.append(this.searchCounter);
 
 		//Create repos wrapper
@@ -42,7 +44,8 @@ export class View {
 		//Add elements to the DOM
 		this.app.append(this.title);
 		this.app.append(this.searchForm);
-		this.app.append(this.searchCounter)
+		this.app.append(this.searchError);
+		this.app.append(this.searchCounter);
 		this.app.append(this.main);
 	}
 

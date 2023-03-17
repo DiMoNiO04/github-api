@@ -30,6 +30,14 @@ body{
 	box-sizing: border-box;
 }
 
+.search-error{
+	color: red;
+	font-size: 18px;
+	font-weight: bold;
+	font-style: italic;
+	border-bottom: 1px solid red;
+}
+
 .counter{
 	font-size: 28px;
 	font-weight: bold;
