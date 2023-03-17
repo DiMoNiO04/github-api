@@ -12,14 +12,19 @@ export class View {
 
 		//Create element SEARCH and adding elements to the DOM
 		this.searchForm = this.createElement('form', 'search-form')
+		
 		this.searchInput = this.createElement('input', 'search-input')
-		this.searchInput.placeholder = 'Enter repository name...'
+		this.searchInput.placeholder = 'Enter repository name...';
+
 		this.searchCounter = this.createElement('span', 'counter');
+
 		this.searchError = this.createElement('span', 'search-error');
+
 		this.searchButton = this.createElement('button', 'button-search');
 		this.searchButton.textContent = 'Search';
 		this.searchButton.title = 'Search';
 		this.searchButton.type = 'submit';
+
 		this.searchForm.append(this.searchInput);
 		this.searchForm.append(this.searchButton);
 		this.searchInput.append(this.searchError);
@@ -84,11 +89,9 @@ export class View {
 		this.reposList.append(repoElement);
 	}
 
-	toggleLoadMoreButton(show) {
-		this.loadMore.style.display = show ? 'block' : 'none';
-	}
+	toggleLoadMoreButton = (show) => this.loadMore.style.display = show ? 'block' : 'none';
 
-	setCounterMessage(message) {
-		this.searchCounter.textContent = message;
-	}
+	setCounterMessage = (message) => this.searchCounter.textContent = message;
+
+	setErrorMessage = (message) => this.searchError.textContent = message;
 }

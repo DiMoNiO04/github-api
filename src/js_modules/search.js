@@ -1,16 +1,10 @@
 'use strict';
 
+import { EMPTY_SEARCH_VALUE } from "./variables.js";
+import { NO_ENOUGH_VALUE } from "./variables.js";
 
 //Search functional class
 export class Search {
-
-	setCurrentPage(pageNumber) {
-		this.currentPage = pageNumber;
-	}
-
-	setReposCount(count) {
-		this.reposCount = count;
-	}
 
 	constructor(view, api, log) {
 		this.view = view;
@@ -19,7 +13,7 @@ export class Search {
 
 		this.view.searchForm.addEventListener('submit', async(event) => {
 			event.preventDefault();
-			this.debounce(this.loadRepos(), 500);
+			this.loadRepos();
 		})
 
 		this.view.loadMore.addEventListener('click', this.loadMoreRepos.bind(this));
@@ -27,21 +21,31 @@ export class Search {
 		this.reposCount = 0;
 	}
 
+	setCurrentPage = (pageNumber) => this.currentPage = pageNumber;
+
+	setReposCount = (count) => this.reposCount = count;
+	
+	clearRepos = () => this.view.reposList.innerHTML = '';
+
 	//search for repositories on demand
 	loadRepos() {
 
+		let message = '';
 		this.setCurrentPage(1);
 		this.view.setCounterMessage('');
+		this.view.setErrorMessage('');
 
 		if(this.view.searchInput.value.length < 4 && this.view.searchInput.value !== '') {
 			this.clearRepos();
 			this.view.toggleLoadMoreButton(false);
-			this.view.searchError.textContent = 'Введите больше 3 символов!';
+			message = this.log.errorMessage(NO_ENOUGH_VALUE);
+			this.view.setErrorMessage(message)
 			return
 		}else if(this.view.searchInput.value === '') {
 			this.clearRepos();
 			this.view.toggleLoadMoreButton(false)
-			this.view.searchError.textContent = 'Заполните форму для поиска!';
+			message = this.log.errorMessage(EMPTY_SEARCH_VALUE);
+			this.view.setErrorMessage(message)
 			return
 		}else {
 			this.clearRepos()
@@ -73,29 +77,6 @@ export class Search {
 			})
 		} catch(e) {
 			console.log('Error:' + e);
-		}
-	}
-
-	clearRepos() {
-		this.view.reposList.innerHTML = '';
-	}
-
-	debounce(func, wait, immediate) {
-		let timeout;
-		return function() {
-			const context = this, args = arguments;
-			const later = function() {
-				timeout = null;
-				if(!immediate) {
-					func.apply(context, args)
-				}
-			}
-			const callNow = immediate && !timeout;
-			clearTimeout(timeout);
-			timeout = setTimeout(later, wait);
-			if(callNow) {
-				func.apply(context, args)
-			}
 		}
 	}
 }
